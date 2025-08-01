@@ -43,6 +43,7 @@ class Agent(AgentInterface):
                 for tool_call in tool_calls:
                     function_name = tool_call.function.name
                     function_args = json.loads(tool_call.function.arguments)
+                    self.callbacks.on_tool_call(self.name, function_name, function_args)
                     tool_output = self.tools.get_callable(function_name)(**function_args)
 
                     assert isinstance(tool_output, tuple), "Tool output should return a tuple of (text, images (none if no images))"
@@ -52,7 +53,10 @@ class Agent(AgentInterface):
                         self.add_context(input={'text': 'Here are the tool output images:\n', 'images': tool_output[1] \
                             if isinstance(tool_output[1], list) else [tool_output[1]]})
             else:
-                user_input = self.callbacks.on_user_loop(response_message.content)
+                try:
+                    user_input = self.callbacks.on_user_loop(self.name, response_message.content)
+                except NotImplementedError:
+                    user_input = "YOU ARE NOT ALLOWED TO DIRECTLY SPEAK WITH USER, CONTACT THE APPROPRIATE AGENT"
                 self.add_context(input={'text': user_input})
 
 

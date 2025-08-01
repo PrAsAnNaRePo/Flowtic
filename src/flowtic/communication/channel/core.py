@@ -16,7 +16,7 @@ class CommunicationProtocol:
         self.agents = agents
         
         self.mapping = self._parse_communication(logic_str)
-        assert all(agent.name in self.mapping for agent in agents), "All agents must be present in the communication protocol"
+        assert all(agent.name in self.parse_agents() for agent in agents), "All agents must be present in the communication protocol"
         assert len(self.parse_agents()) == len(agents), "All agents must be present in the communication protocol"
         self.agent_map = {agents[i].name: agents[i] for i in range(len(agents))}
         self.print_graph_as_tree()
@@ -128,7 +128,7 @@ class CommunicationProtocol:
         return agent(input)
     
     def _spin_into(self, receiver: str, message: str, context: str):
-        return self._spin_up(receiver, f"{context}\n\n{message}"), None
+        return self._spin_up(receiver, f"It's {receiver} here (not the user, don't get confused). {context}\n\n{message}"), None
 
     def execute(self, input: str, images: Optional[List] = None):
         prior_agent_name = list(self.mapping.keys())[0]

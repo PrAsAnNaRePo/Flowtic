@@ -4,8 +4,8 @@ class Callback:
     def __init__(self) -> None:
         pass
 
-    def on_user_loop(self, assistant_message: str):
+    def on_user_loop(self, agent_name: str, assistant_message: str):
         raise NotImplementedError
 
-    def on_tool_call(self, fn_name: str, arguments: Dict[str, Any]):
-        print('Tool Call: ', fn_name, arguments)
+    def on_tool_call(self, agent_name: str, fn_name: str, arguments: Dict[str, Any]):
+        print('Tool Call: ', agent_name, fn_name, arguments)
