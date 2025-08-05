@@ -44,7 +44,10 @@ class Agent(AgentInterface):
                     function_name = tool_call.function.name
                     function_args = json.loads(tool_call.function.arguments)
                     self.callbacks.on_tool_call(self.name, function_name, function_args)
-                    tool_output = self.tools.get_callable(function_name)(**function_args)
+                    if function_name == '_spin_into':
+                        tool_output = self.tools.get_callable(function_name)(self.name, **function_args)
+                    else:
+                        tool_output = self.tools.get_callable(function_name)(**function_args)
 
                     assert isinstance(tool_output, tuple), "Tool output should return a tuple of (text, images (none if no images))"
 

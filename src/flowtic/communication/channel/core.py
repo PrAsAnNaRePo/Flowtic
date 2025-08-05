@@ -23,6 +23,9 @@ class CommunicationProtocol:
         self._communication_validation()
         for item in self.mapping.items():
             self._inject_handsoff(item[0], item[1])
+        
+        self.communication_tracer = []
+
     def _parse_communication(self, sequence: str):
         pattern = re.compile(r'\s*(\w+)\s*(<->|->)\s*(\w+)\s*')
         graph = defaultdict(list)
@@ -123,11 +126,22 @@ class CommunicationProtocol:
 
     def _spin_up(self, agent_name: str, input: str):
         agent = self.agent_map.get(agent_name)
-        if not agent:
-            raise ValueError(f"Agent {agent_name} not found")
         return agent(input)
     
-    def _spin_into(self, receiver: str, message: str, context: str):
+    def _spin_into(self, sender: str, receiver: str, message: str, context: str):
+        self.communication_tracer.append((sender, receiver))
+        if receiver in [pair[0] for pair in self.communication_tracer]:
+            active_listr = None
+            for pair in self.communication_tracer:
+                if receiver in pair:
+                    active_listr = pair
+                    break
+            
+            if active_listr[1] == sender:
+                return f"Hey {receiver}, it's {sender} here (not the user, don't get confused). {context}\n\n{message}", None
+            else:
+                return f"Hey {receiver}, it's {sender} here (neither the user nor {active_listr[1]}, don't get confused). {context}\n\n{message}", None
+        
         return self._spin_up(receiver, f"It's {receiver} here (not the user, don't get confused). {context}\n\n{message}"), None
 
     def execute(self, input: str, images: Optional[List] = None):

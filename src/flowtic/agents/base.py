@@ -37,8 +37,11 @@ class AgentInterface(ABC):
             self.callbacks = Callback()
         
         if not self.allow_user_input:
-            instructions += '\nYou are STRICTLY NOT allowed to communicate to user directly, contact to any other agents if you are allowed to.'
+            self.instructions += '\nYou are STRICTLY NOT allowed to communicate to user directly, contact to any other agents if you are allowed to.'
         
+        if self.agent_name:
+            self.instructions = f'\nYou are {self.agent_name}. ' + self.instructions
+
         self._register_session()
     
     @property
