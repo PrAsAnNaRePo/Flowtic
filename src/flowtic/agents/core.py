@@ -31,36 +31,51 @@ class Agent(AgentInterface):
         """
 
         self.add_context(input={'text': input, 'images': images})
-
+        
+        turn_count = 0
         while True:
+            if self.max_turns > 0 and turn_count >= self.max_turns:
+                break
+                
             response = self.completion()
             response_message = response.choices[0].message
             self.add_context(assistant_output=response_message)
+            turn_count += 1
 
             tool_calls = response_message.tool_calls
 
             if tool_calls:
+                communication_occurred = False
                 for tool_call in tool_calls:
                     function_name = tool_call.function.name
                     function_args = json.loads(tool_call.function.arguments)
                     self.callbacks.on_tool_call(self.name, function_name, function_args)
                     if function_name == '_spin_into':
                         tool_output = self.tools.get_callable(function_name)(self.name, **function_args)
+                        communication_occurred = True
                     else:
                         tool_output = self.tools.get_callable(function_name)(**function_args)
 
                     assert isinstance(tool_output, tuple), "Tool output should return a tuple of (text, images (none if no images))"
 
-                    self.add_context(tool_output={'fn_name': function_name, 'tool_call_id': tool_call.id, 'output': tool_output[0]})
+                    self.add_context(tool_output={'fn_name': function_name, 'tool_call_id': tool_call.id, 'output': str(tool_output[0])})
                     if tool_output[1]:
                         self.add_context(input={'text': 'Here are the tool output images:\n', 'images': tool_output[1] \
                             if isinstance(tool_output[1], list) else [tool_output[1]]})
+                
+                # If agent communicated to another agent and doesn't allow user input, stop
+                if communication_occurred and not self.allow_user_input:
+                    break
+                    
             else:
-                try:
-                    user_input = self.callbacks.on_user_loop(self.name, response_message.content)
-                except NotImplementedError:
-                    user_input = "YOU ARE NOT ALLOWED TO DIRECTLY SPEAK WITH USER, CONTACT THE APPROPRIATE AGENT"
-                self.add_context(input={'text': user_input})
+                if self.allow_user_input:
+                    try:
+                        user_input = self.callbacks.on_user_loop(self.name, response_message.content)
+                        self.add_context(input={'text': user_input})
+                    except NotImplementedError:
+                        break
+                else:
+                    break
 
 
 

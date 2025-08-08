@@ -126,23 +126,41 @@ class CommunicationProtocol:
 
     def _spin_up(self, agent_name: str, input: str):
         agent = self.agent_map.get(agent_name)
-        return agent(input)
+        
+        original_buffer = agent.session.get_buffer_memory(tag=agent.name)
+        original_length = len(original_buffer)
+        
+        agent(input)
+        
+        updated_buffer = agent.session.get_buffer_memory(tag=agent.name)
+        new_messages = updated_buffer[original_length:]
+        
+        output_parts = []
+        
+        for msg in new_messages:
+            if isinstance(msg, dict) and msg.get('role') == 'tool':
+                content = msg.get('content', '')
+                if content and content != 'None':
+                    output_parts.append(content)
+            elif hasattr(msg, 'role') and msg.role == 'assistant' and msg.content:
+                output_parts.append(msg.content)
+        
+        if output_parts:
+            return output_parts[-1]
+        else:
+            return f"{agent_name} completed the request"
     
     def _spin_into(self, sender: str, receiver: str, message: str, context: str):
-        self.communication_tracer.append((sender, receiver))
-        if receiver in [pair[0] for pair in self.communication_tracer]:
-            active_listr = None
-            for pair in self.communication_tracer:
-                if receiver in pair:
-                    active_listr = pair
-                    break
-            
-            if active_listr[1] == sender:
-                return f"Hey {receiver}, it's {sender} here (not the user, don't get confused). {context}\n\n{message}", None
-            else:
-                return f"Hey {receiver}, it's {sender} here (neither the user nor {active_listr[1]}, don't get confused). {context}\n\n{message}", None
+        current_conversation = (sender, receiver)
+        reverse_conversation = (receiver, sender)
         
-        return self._spin_up(receiver, f"It's {receiver} here (not the user, don't get confused). {context}\n\n{message}"), None
+        if reverse_conversation in self.communication_tracer[-3:]:  # Check last 3 exchanges
+            return f"Hey {receiver}, it's {sender} here (not the user, don't get confused). {context}\n\n{message}", None
+        
+        self.communication_tracer.append(current_conversation)
+        
+        agent_response = self._spin_up(receiver, f"Hey {receiver}, It's {sender} here (not the user, don't get confused). {context}\n\n{message}")
+        return agent_response, None
 
     def execute(self, input: str, images: Optional[List] = None):
         prior_agent_name = list(self.mapping.keys())[0]
