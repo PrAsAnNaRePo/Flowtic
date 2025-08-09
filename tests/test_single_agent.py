@@ -38,7 +38,7 @@ calculatorl = Tool(
 def main():
     agent = Agent(
         agent_name='agent',
-        model_name='azure/gpt-4.1',
+        model_name='your_model_here',   # <- your_model_here
         instructions='You are a helpful assistant.',
         tools=Tools([calculatorl]),
         tool_choice='auto',
