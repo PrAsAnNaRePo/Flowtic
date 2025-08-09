@@ -1,15 +1,46 @@
 [project]
 name = "flowtic"
 version = "0.1.0"
-description = "Add your description here"
+description = "A modern Python library for building multi-agent communication systems with LLM integration"
 readme = "README.md"
+license = { text = "MIT" }
 authors = [
     { name = "PrAsAnNaRePo", email = "prasannatwenty@gmail.com" }
 ]
+maintainers = [
+    { name = "PrAsAnNaRePo", email = "prasannatwenty@gmail.com" }
+]
 requires-python = ">=3.12"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+keywords = ["llm", "agents", "communication", "ai", "multi-agent"]
 dependencies = [
     "litellm>=1.74.7",
     "pillow>=11.3.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/PrAsAnNaRePo/Flowtic"
+Repository = "https://github.com/PrAsAnNaRePo/Flowtic"
+Issues = "https://github.com/PrAsAnNaRePo/Flowtic/issues"
+Documentation = "https://github.com/PrAsAnNaRePo/Flowtic#readme"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "ruff>=0.1.0",
+    "mypy>=1.8.0",
+    "twine>=4.0.0",
+    "build>=1.0.0",
 ]
 
 [build-system]
