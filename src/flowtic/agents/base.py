@@ -17,6 +17,7 @@ class AgentInterface(ABC):
         allow_user_input: bool = True,
         max_turns: int = -1,
         callbacks: Callback | None = None,
+        temperature: float = 1
     ):
         self.agent_name = agent_name
         self.model_name = model_name
@@ -27,6 +28,7 @@ class AgentInterface(ABC):
         self.allow_user_input = allow_user_input
         self.max_turns = max_turns
         self.callbacks = callbacks
+        self.temperature = temperature
 
         if not self.session:
             self.session = SessionManager()
@@ -54,6 +56,7 @@ class AgentInterface(ABC):
                 messages=self.session.get_buffer_memory(tag=self.name),
                 tools=self.tools.get_definitions() if self.tools else None,
                 tool_choice=self.tool_choice if self.tools else None,
+                temperature=self.temperature
                 **kwargs
             )
     
