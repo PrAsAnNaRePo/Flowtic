@@ -56,7 +56,7 @@ class AgentInterface(ABC):
                 messages=self.session.get_buffer_memory(tag=self.name),
                 tools=self.tools.get_definitions() if self.tools else None,
                 tool_choice=self.tool_choice if self.tools else None,
-                temperature=self.temperature
+                temperature=self.temperature,
                 **kwargs
             )
     
