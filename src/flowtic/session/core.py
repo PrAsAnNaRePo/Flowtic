@@ -10,7 +10,7 @@ class SessionManager(SessionInterface):
     def _handle_image(self, image: str):
         if os.path.exists(image):
             with open(image, 'rb') as f:
-                return f'data:image/jpeg;base64,{base64.b64encode(f.read()).decode('utf-8')}'
+                return f"data:image/jpeg;base64,{base64.b64encode(f.read()).decode('utf-8')}"
         else:
             return f'data:image/jpeg;base64,{image}'
             
