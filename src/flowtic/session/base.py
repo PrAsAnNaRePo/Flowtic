@@ -19,6 +19,14 @@ class SessionInterface(ABC):
     def get_buffer_memory(self, tag: str) -> List:
         return self._buffer_memory[tag]
     
+    def add_sys_ins(self, tag: str, instruction: str):
+        self._buffer_memory[tag].append(
+            {
+                'role': 'system',
+                'content': instruction
+            }
+        )
+
     @abstractmethod
     def add_user_context(self, tag: str, text: Optional[str] = None, images: Optional[List] = None): ...
     

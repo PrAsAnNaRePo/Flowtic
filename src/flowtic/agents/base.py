@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 from flowtic.session import SessionManager
 from flowtic.agents.tools import Tool, Tools
-from litellm import completion
+from litellm import completion, acompletion
 from flowtic.communication import Callback
 
 class AgentInterface(ABC):
@@ -45,6 +45,7 @@ class AgentInterface(ABC):
             self.instructions = f'\nYou are {self.agent_name}. ' + self.instructions
 
         self._register_session()
+        self.session.add_sys_ins(self.name, instructions)
     
     @property
     def name(self) -> str:
@@ -52,6 +53,16 @@ class AgentInterface(ABC):
     
     def completion(self, **kwargs) -> Any:
         return completion(
+                model=self.model_name,
+                messages=self.session.get_buffer_memory(tag=self.name),
+                tools=self.tools.get_definitions() if self.tools else None,
+                tool_choice=self.tool_choice if self.tools else None,
+                temperature=self.temperature,
+                **kwargs
+            )
+
+    def acompletion(self, **kwargs) -> Any:
+        return acompletion(
                 model=self.model_name,
                 messages=self.session.get_buffer_memory(tag=self.name),
                 tools=self.tools.get_definitions() if self.tools else None,
@@ -83,6 +94,3 @@ class AgentInterface(ABC):
             self.tools = Tools([tool])
         else:
             self.tools.register_tool(tool)
-        
-    @abstractmethod
-    def __call__(self, prompt: str, images: Optional[List] = None) -> Any: ...
