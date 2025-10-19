@@ -10,9 +10,10 @@ class SessionManager(SessionInterface):
         super().__init__(*args, **kwargs)
     
     def _handle_image(self, image: Any):
-        if os.path.exists(image):
-            with open(image, 'rb') as f:
-                return f"data:image/jpeg;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+        if isinstance(image, str):
+            if os.path.exists(image):
+                with open(image, 'rb') as f:
+                    return f"data:image/jpeg;base64,{base64.b64encode(f.read()).decode('utf-8')}"
         elif isinstance(image, Image.Image):
             buffered = io.BytesIO()
             image.save(buffered, format="JPEG")
