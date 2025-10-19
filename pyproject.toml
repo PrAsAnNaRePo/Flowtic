@@ -1,6 +1,6 @@
 [project]
 name = "flowtic"
-version = "0.1.0"
+version = "1.5.0"
 description = "A modern Python library for building multi-agent communication systems with LLM integration"
 readme = "README.md"
 license = { text = "MIT" }
