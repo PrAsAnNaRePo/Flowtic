@@ -2,15 +2,22 @@ from typing import Any, Optional, List
 from flowtic.session.base import SessionInterface
 import os
 import base64
+from PIL import Image
+import io
 
 class SessionManager(SessionInterface):
     def __init__(self, *args, **kwargs): 
         super().__init__(*args, **kwargs)
     
-    def _handle_image(self, image: str):
+    def _handle_image(self, image: Any):
         if os.path.exists(image):
             with open(image, 'rb') as f:
                 return f"data:image/jpeg;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+        elif isinstance(image, Image.Image):
+            buffered = io.BytesIO()
+            image.save(buffered, format="JPEG")
+            encoded = base64.b64encode(buffered.getvalue()).decode('utf-8')
+            return f"data:image/jpeg;base64,{encoded}"
         else:
             return f'data:image/jpeg;base64,{image}'
             
