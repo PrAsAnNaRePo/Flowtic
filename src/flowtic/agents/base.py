@@ -14,11 +14,13 @@ class AgentInterface(ABC):
         tools: Tools | None = None,
         tool_choice: str | None = None,
         session: Optional[SessionManager] = None,
+        *,
         allow_user_input: bool = True,
         max_turns: int = -1,
         callbacks: Callback | None = None,
         temperature: float = 1,
         reasoning_effort=None,
+        verbose: bool = False
     ):
         self.agent_name = agent_name
         self.model_name = model_name
@@ -31,8 +33,10 @@ class AgentInterface(ABC):
         self.callbacks = callbacks
         self.temperature = temperature
         self.reasoning_effort = reasoning_effort
+        self.verbose = verbose
 
         if not self.session:
+            print("Session not provided, creating a new one...") if self.verbose else None 
             self.session = SessionManager()
         
         assert self.allow_user_input == (self.callbacks is not None), "Callbacks should be provided if allow_user_input is True"
@@ -41,6 +45,7 @@ class AgentInterface(ABC):
             self.callbacks = Callback()
         
         if not self.allow_user_input:
+            print(f"Restricting user input to Agent {self.name}") if self.verbose else None 
             self.instructions += '\nYou are STRICTLY NOT allowed to communicate to user directly, contact to any other agents if you are allowed to.'
         
         if self.agent_name:

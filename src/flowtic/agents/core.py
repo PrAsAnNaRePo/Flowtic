@@ -31,6 +31,9 @@ class Agent(AgentInterface):
             images (Optional[List], optional): List of images as a local file path or url or base64 encoded string. Defaults to None.
         """
 
+        if self.verbose:
+            print(f">> Staring {self.name} agent execution")
+
         self.add_context(input={'text': input, 'images': images})
         
         turn_count = 0
@@ -113,19 +116,25 @@ class AsyncAgent(AgentInterface):
             images (Optional[List], optional): List of images as a local file path or url or base64 encoded string. Defaults to None.
         """
 
+        if self.verbose:
+            print(f">> Staring {self.name} agent execution")
+
         self.add_context(input={'text': input, 'images': images})
         
         turn_count = 0
         while True:
             if self.max_turns > 0 and turn_count >= self.max_turns:
                 break
-            
-            print(">>> context")
-            print(self.session.get_buffer_memory(self.name))
-            print(">>>")
+            if self.verbose: 
+                print("Session Buffer:")
+                print(self.session.get_buffer_memory(self.name))
+
             response = await self.acompletion()
             response_message = response.choices[0].message
-            print(response_message)
+            
+            if self.verbose:
+                print(response_message)
+
             self.add_context(assistant_output=response_message)
             turn_count += 1
 
@@ -156,8 +165,9 @@ class AsyncAgent(AgentInterface):
                 tool_outputs = await asyncio.gather(*tasks)
 
                 for tool_output, metadata in zip(tool_outputs, tool_metadata):
-                    print("TOOL OUTPUT: ")
-                    print(tool_output)
+                    if self.verbose:
+                        print("TOOL OUTPUT: ")
+                        print(tool_output)
 
                     # if metadata['function_name'] != '_async_spin_into':
                     assert isinstance(tool_output, tuple), "Tool output should return a tuple of (text, images (none if no images))"
