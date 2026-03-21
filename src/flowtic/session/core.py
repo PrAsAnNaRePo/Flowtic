@@ -1,26 +1,53 @@
-from typing import Any, Optional, List
-from flowtic.session.base import SessionInterface
-import os
 import base64
-from PIL import Image
+import binascii
 import io
+import mimetypes
+import os
+from typing import Any, List, Optional
+
+from PIL import Image
+
+from flowtic.session.base import SessionInterface
 
 class SessionManager(SessionInterface):
     def __init__(self, *args, **kwargs): 
         super().__init__(*args, **kwargs)
     
+    def _encode_image_bytes(self, image_bytes: bytes, mime_type: str) -> str:
+        encoded = base64.b64encode(image_bytes).decode("utf-8")
+        return f"data:{mime_type};base64,{encoded}"
+
     def _handle_image(self, image: Any):
-        if isinstance(image, str):
-            if os.path.exists(image):
-                with open(image, 'rb') as f:
-                    return f"data:image/jpeg;base64,{base64.b64encode(f.read()).decode('utf-8')}"
-        elif isinstance(image, Image.Image):
+        if isinstance(image, Image.Image):
             buffered = io.BytesIO()
-            image.save(buffered, format="JPEG")
-            encoded = base64.b64encode(buffered.getvalue()).decode('utf-8')
-            return f"data:image/jpeg;base64,{encoded}"
-        else:
-            return f'data:image/jpeg;base64,{image}'
+            image_format = (image.format or "PNG").upper()
+            image.save(buffered, format=image_format)
+            return self._encode_image_bytes(buffered.getvalue(), f"image/{image_format.lower()}")
+
+        if isinstance(image, bytes):
+            return self._encode_image_bytes(image, "image/jpeg")
+
+        if not isinstance(image, str):
+            raise TypeError("Images must be file paths, URLs, base64 strings, bytes, or PIL images")
+
+        normalized_image = image.strip()
+
+        if normalized_image.startswith(("http://", "https://", "data:image/")):
+            return normalized_image
+
+        if os.path.exists(normalized_image):
+            mime_type = mimetypes.guess_type(normalized_image)[0] or "image/jpeg"
+            with open(normalized_image, "rb") as file_handle:
+                return self._encode_image_bytes(file_handle.read(), mime_type)
+
+        try:
+            base64.b64decode(normalized_image, validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise ValueError(
+                "Images must be valid local paths, URLs, data URLs, or raw base64 strings"
+            ) from exc
+
+        return f"data:image/jpeg;base64,{normalized_image}"
             
     def add_user_context(self, tag: str, text: Optional[str] = None, images: Optional[List] = None):
         if text and images:

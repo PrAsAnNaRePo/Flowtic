@@ -1,1 +1,1 @@
-from .core import SessionManager
+from .core import SessionManager as SessionManager

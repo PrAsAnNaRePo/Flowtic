@@ -8,4 +8,4 @@ class Callback:
         raise NotImplementedError
 
     def on_tool_call(self, agent_name: str, fn_name: str, arguments: Dict[str, Any]):
-        print(f"{agent_name} ===> {fn_name}")
+        return None

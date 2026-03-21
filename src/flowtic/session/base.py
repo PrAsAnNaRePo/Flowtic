@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, List, Optional
 
 class SessionInterface(ABC):
     def __init__(self, ctx_size: int = 4):
@@ -34,7 +34,7 @@ class SessionInterface(ABC):
     def add_assistant_context(self, tag: str, ass_out: Any): ...
     
     @abstractmethod
-    def add_tool_context(self, tag: str, text: Optional[str] = None, images: Optional[List] = None): ...
+    def add_tool_context(self, tag: str, fn_name: str, tool_call_id: str, output: Any): ...
 
     def _register_buffer(self, tag: str):
         if tag not in self._buffer_memory:

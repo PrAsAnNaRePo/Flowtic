@@ -1,1 +1,1 @@
-from .core import CommunicationProtocol
+from .core import CommunicationProtocol as CommunicationProtocol

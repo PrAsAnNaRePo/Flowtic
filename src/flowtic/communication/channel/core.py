@@ -11,26 +11,25 @@ class CommunicationProtocol:
         self,
         logic_str: str,
         agents: List['Agent'],
-        async_run_type = False
+        async_run_type = False,
+        *,
+        verbose: bool = False,
     ) -> None:
         self.logic_str = logic_str
         self.agents = agents
+        self.verbose = verbose
         
         self.mapping = self._parse_communication(logic_str)
-        
-        assert all(agent.name in self.parse_agents() for agent in agents), "All agents must be present in the communication protocol"
-        assert len(self.parse_agents()) == len(agents), "All agents must be present in the communication protocol"
+        if not self.mapping:
+            raise ValueError("Communication protocol cannot be empty")
         
         self.async_run_type = async_run_type
         self.agent_map = {agents[i].name: agents[i] for i in range(len(agents))}
-        self.print_graph_as_tree()
         self._communication_validation()
+        if self.verbose:
+            self.print_graph_as_tree()
         for item in self.mapping.items():
             self._inject_handsoff(item[0], item[1])
-        for a_n, a in self.agent_map.items():
-            print(a_n, a.tools.get_definitions())
-        
-        self.communication_tracer = []
 
 
     def _parse_communication(self, sequence: str):
@@ -54,27 +53,29 @@ class CommunicationProtocol:
         agents.extend(list(self.mapping.keys()))
         _vals = [j for i in list(self.mapping.values()) for j in i]
         agents.extend(_vals)
-        agents = list(set(agents))
-        return agents
+        return list(dict.fromkeys(agents))
     
-    def _communication_validation(self):        
-        agents = self.parse_agents()
+    def _communication_validation(self):
+        protocol_agents = set(self.parse_agents())
+        provided_agents = set(self.agent_map)
 
-        not_found = []
-        for a in agents:
-            if a not in [j for i in list(self.mapping.values()) for j in i]:
-                not_found.append(a)
-        if sorted(agents)[0] in not_found:
-            not_found.remove(sorted(agents)[0])
-
-        if not_found:
-            raise ValueError(f"Agents {not_found} should be receiving input from other agents")            
+        if protocol_agents != provided_agents:
+            missing_agents = sorted(protocol_agents - provided_agents)
+            extra_agents = sorted(provided_agents - protocol_agents)
+            errors = []
+            if missing_agents:
+                errors.append(f"Missing agents: {missing_agents}")
+            if extra_agents:
+                errors.append(f"Unexpected agents: {extra_agents}")
+            raise ValueError(". ".join(errors))            
 
     def print_graph_as_tree(self):
         targets = {t for vals in self.mapping.values() for t in vals}
         roots   = [n for n in self.mapping if n not in targets] or list(self.mapping.keys())
 
-        def dfs(node, prefix="", visited=set(), is_last=True):
+        def dfs(node, prefix="", visited=None, is_last=True):
+            if visited is None:
+                visited = set()
             looped = node in visited
             branch = "└── " if is_last else "├── "
             print(prefix + branch + node + (" (↺)" if looped else ""))
@@ -97,6 +98,21 @@ class CommunicationProtocol:
 
     def get_connected_agents(self, agent_name: str):
         return self.mapping.get(agent_name, [])
+
+    def _format_handoff_message(self, sender: str, receiver: str, message: str, context: str) -> str:
+        prefix = f"Hey {receiver}, It's {sender} here (not the user, don't get confused)."
+        cleaned_context = context.strip()
+        cleaned_message = message.strip()
+
+        if cleaned_context:
+            return f"{prefix} {cleaned_context}\n\n{cleaned_message}"
+
+        return f"{prefix}\n\n{cleaned_message}"
+
+    def _validate_receiver(self, sender: str, receiver: str) -> None:
+        allowed_receivers = self.get_connected_agents(sender)
+        if receiver not in allowed_receivers:
+            raise ValueError(f"Agent {sender} cannot communicate with {receiver}. Allowed receivers: {allowed_receivers}")
     
     def _inject_handsoff(self, agent: str, recievers: List[str]):
         self.agent_map.get(agent).add_tool(
@@ -105,7 +121,7 @@ class CommunicationProtocol:
                     "type": "function",
                     "function": {
                         "name": f"{self._async_spin_into.__name__ if self.async_run_type else self._spin_into.__name__}",
-                        "description": f"Use this tool to communicate with other agents",
+                        "description": "Use this tool to communicate with other agents",
                         "parameters": {
                             "type": "object",
                             "properties": {
@@ -127,53 +143,13 @@ class CommunicationProtocol:
                     },
                 },
                 tool_execution=self._async_spin_into if self.async_run_type else self._spin_into,
-            )
+                )
         )
 
-    def _spin_up(self, agent_name: str, input: str):
-        agent = self.agent_map.get(agent_name)
-        
-        original_buffer = agent.session.get_buffer_memory(tag=agent.name)
-        original_length = len(original_buffer)
-        
-        agent(input)
-        
-        updated_buffer = agent.session.get_buffer_memory(tag=agent.name)
-        new_messages = updated_buffer[original_length:]
-        
-        output_parts = []
-        
-        for msg in new_messages:
-            if isinstance(msg, dict) and msg.get('role') == 'tool':
-                content = msg.get('content', '')
-                if content and content != 'None':
-                    output_parts.append(content)
-            elif hasattr(msg, 'role') and msg.role == 'assistant' and msg.content:
-                output_parts.append(msg.content)
-        
-        if output_parts:
-            return output_parts[-1]
-        else:
-            return f"{agent_name} completed the request"
-
-    async def _async_spin_up(self, agent_name: str, input: str):
-        agent = self.agent_map.get(agent_name)
-        print(f"spining up agent {agent_name}")
-
-        if agent_name not in list(self.agent_map.keys()):
-            return f"No agent found called {agent_name}"
-
-        original_buffer = agent.session.get_buffer_memory(tag=agent.name)
-        original_length = len(original_buffer)
-
-        await agent(input)
-
-        updated_buffer = agent.session.get_buffer_memory(tag=agent.name)
-        new_messages = updated_buffer[original_length:]
-
+    def _collect_output(self, messages):
         output_parts = []
 
-        for msg in new_messages:
+        for msg in messages:
             if isinstance(msg, dict) and msg.get('role') == 'tool':
                 content = msg.get('content', '')
                 if content and content != 'None':
@@ -183,70 +159,64 @@ class CommunicationProtocol:
 
         if output_parts:
             return output_parts[-1]
-        else:
-            return f"{agent_name} completed the request"
+
+        return None
+
+    def _spin_up(self, agent_name: str, input: str, images: Optional[List] = None):
+        agent = self.agent_map.get(agent_name)
+        if agent is None:
+            raise ValueError(f"No agent found called {agent_name}")
+        
+        original_buffer = agent.session.get_buffer_memory(tag=agent.name)
+        original_length = len(original_buffer)
+        
+        output = agent(input, images=images)
+        if output is not None:
+            return output
+        
+        updated_buffer = agent.session.get_buffer_memory(tag=agent.name)
+        new_messages = updated_buffer[original_length:]
+
+        return self._collect_output(new_messages) or f"{agent_name} completed the request"
+
+    async def _async_spin_up(self, agent_name: str, input: str, images: Optional[List] = None):
+        agent = self.agent_map.get(agent_name)
+
+        if agent is None:
+            raise ValueError(f"No agent found called {agent_name}")
+
+        original_buffer = agent.session.get_buffer_memory(tag=agent.name)
+        original_length = len(original_buffer)
+
+        output = await agent(input, images=images)
+        if output is not None:
+            return output
+
+        updated_buffer = agent.session.get_buffer_memory(tag=agent.name)
+        new_messages = updated_buffer[original_length:]
+
+        return self._collect_output(new_messages) or f"{agent_name} completed the request"
         
     def _spin_into(self, sender: str, receiver: str, message: str, context: str):
-        current_conversation = (sender, receiver)
-        print("spinning into...")
-        if receiver in [i[-1] for i in self.communication_tracer]:
-            print("already talking agent...")
-            for i in self.communication_tracer:
-                if receiver in i:
-                    ref_conv = i
-            self.communication_tracer.remove(ref_conv)
-            res = f"Hey sorry to interrupt! its {sender} here (not the user nor {ref_conv[1]}). {context}\n\n{message}"
+        self._validate_receiver(sender, receiver)
+        return self._spin_up(receiver, self._format_handoff_message(sender, receiver, message, context)), None
 
-            tar_agent = self.agent_map.get(receiver)
-            tar_agent.add_context(tool_output={'fn_name': self._spin_into.__name__, 'tool_call_id': tool_call.id, 'output': res})
-            self.communication_tracer.append(current_conversation)
+    async def _async_spin_into(self, sender: str, receiver: str, message: str, context: str):
+        self._validate_receiver(sender, receiver)
+        return await self._async_spin_up(
+            receiver,
+            self._format_handoff_message(sender, receiver, message, context),
+        ), None
 
-        else:
-            print("initiating comm...")
-            self._spin_up(receiver, f"Hey {receiver}, It's {sender} here (not the user, don't get confused). {context}\n\n{message}")
+    def execute(self, input: str, images: Optional[List] = None, start_agent: Optional[str] = None):
+        prior_agent_name = start_agent or list(self.mapping.keys())[0]
 
-    async def _async_spin_into(self, sender: str, tool_call_id, receiver: str, message: str, context: str):
-        current_conversation = (sender, receiver)
+        return self._spin_up(prior_agent_name, input, images=images)
 
-        if receiver in [i['conv'][0] for i in self.communication_tracer]:
-            print("ENTERING INTO FILLING FN CALL")
-            for i in self.communication_tracer:
-                if receiver in i['conv']:
-                    ref_conv = i
-            self.communication_tracer.remove(ref_conv)
-            
-            if ref_conv['conv'][0] == current_conversation[1]:
-                res = f"{message}/n{context}"
-            else:
-                res = f"Hey sorry to interrupt! its {sender} here (not the user nor {ref_conv[1]}). {context}\n\n{message}"
-            
-            tar_agent = self.agent_map.get(receiver)
-            tar_agent.add_context(tool_output={'fn_name': self._async_spin_into.__name__, 'tool_call_id': ref_conv['call_id'], 'output': res})
-            self.communication_tracer.append(
-                {
-                    "conv" : current_conversation,
-                    "call_id": tool_call_id
-                }
-            )
-            return await self._async_spin_up(receiver, "SYSTEM: MESSAGE RECIEVED!"), None
+    async def async_execute(self, input: str, images: Optional[List] = None, start_agent: Optional[str] = None):
+        prior_agent_name = start_agent or list(self.mapping.keys())[0]
 
-        else:
-            self.communication_tracer.append(
-                {
-                    "conv" : current_conversation,
-                    "call_id": tool_call_id
-                }
-            )
-            return await self._async_spin_up(receiver, f"Hey {receiver}, It's {sender} here (not the user, don't get confused). {context}\n\n{message}"), None
+        return await self._async_spin_up(prior_agent_name, input, images=images)
 
-    def execute(self, input: str, images: Optional[List] = None):
-        prior_agent_name = list(self.mapping.keys())[0]
-
-        self._spin_up(prior_agent_name, input)
-
-    async def asyn_execute(self, input: str, images: Optional[List] = None):
-        self.sync_run_type = False
-        prior_agent_name = list(self.mapping.keys())[0]
-
-        await self._async_spin_up(prior_agent_name, input)
-
+    async def asyn_execute(self, input: str, images: Optional[List] = None, start_agent: Optional[str] = None):
+        return await self.async_execute(input, images=images, start_agent=start_agent)

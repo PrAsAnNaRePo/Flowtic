@@ -1,5 +1,6 @@
-from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from abc import ABC
+import inspect
+from typing import Any, Dict, Optional
 from flowtic.session import SessionManager
 from flowtic.agents.tools import Tool, Tools
 from litellm import completion, acompletion
@@ -24,7 +25,7 @@ class AgentInterface(ABC):
     ):
         self.agent_name = agent_name
         self.model_name = model_name
-        self.instructions = instructions
+        self.instructions = instructions or "You are a helpful assistant."
         self.tools = tools
         self.tool_choice = tool_choice
         self.session = session
@@ -39,7 +40,8 @@ class AgentInterface(ABC):
             print("Session not provided, creating a new one...") if self.verbose else None 
             self.session = SessionManager()
         
-        assert self.allow_user_input == (self.callbacks is not None), "Callbacks should be provided if allow_user_input is True"
+        if self.allow_user_input and self.callbacks is None:
+            raise ValueError("Callbacks should be provided if allow_user_input is True")
 
         if not self.callbacks:
             self.callbacks = Callback()
@@ -52,7 +54,7 @@ class AgentInterface(ABC):
             self.instructions = f'\nYou are {self.agent_name}. ' + self.instructions
 
         self._register_session()
-        self.session.add_sys_ins(self.name, instructions)
+        self.session.add_sys_ins(self.name, self.instructions)
     
     @property
     def name(self) -> str:
@@ -103,3 +105,37 @@ class AgentInterface(ABC):
             self.tools = Tools([tool])
         else:
             self.tools.register_tool(tool)
+
+    def _call_user_loop(self, assistant_message: str):
+        method = self.callbacks.on_user_loop
+        signature = inspect.signature(method)
+        positional_params = [
+            parameter
+            for parameter in signature.parameters.values()
+            if parameter.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+        ]
+
+        if any(parameter.kind == inspect.Parameter.VAR_POSITIONAL for parameter in signature.parameters.values()):
+            return method(self.name, assistant_message)
+
+        if len(positional_params) <= 1:
+            return method(assistant_message)
+
+        return method(self.name, assistant_message)
+
+    def _call_tool_callback(self, function_name: str, arguments: Dict[str, Any]):
+        method = self.callbacks.on_tool_call
+        signature = inspect.signature(method)
+        positional_params = [
+            parameter
+            for parameter in signature.parameters.values()
+            if parameter.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+        ]
+
+        if any(parameter.kind == inspect.Parameter.VAR_POSITIONAL for parameter in signature.parameters.values()):
+            return method(self.name, function_name, arguments)
+
+        if len(positional_params) <= 2:
+            return method(function_name, arguments)
+
+        return method(self.name, function_name, arguments)

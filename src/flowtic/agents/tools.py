@@ -35,5 +35,6 @@ class Tools():
         return [tool.tool_definition for tool in self.tools]
     
     def register_tool(self, tool: Tool) -> None:
+        self.tools = [existing_tool for existing_tool in self.tools if existing_tool.get_name() != tool.get_name()]
         self.tools.append(tool)
         self._create_map()

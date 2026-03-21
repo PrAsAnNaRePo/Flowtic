@@ -125,30 +125,31 @@ agent = Agent(
 
 ## Session management
 
-By default, each agent gets its own conversation buffer. But you can share sessions between agents:
+Each agent keeps its own conversation buffer. Even if multiple agents reuse the same `SessionManager`, their histories stay isolated by agent name:
 
 ```python
 from flowtic import SessionManager
 
-# Shared session across agents
-shared_session = SessionManager()
+session_store = SessionManager()
 
 agent1 = Agent(
     agent_name="researcher",
     model_name="gpt-4o",
-    session=shared_session
+    session=session_store
 )
 
 agent2 = Agent(
     agent_name="writer", 
     model_name="gpt-4o",
-    session=shared_session  # same session
+    session=session_store
 )
 
-# Now both agents see the full conversation history
+# The writer still has its own memory
 agent1("Find info about climate change")
 agent2("Write a summary based on what the researcher found")
 ```
+
+If you want agents to share context, use agent-to-agent communication. `CommunicationProtocol` injects `_spin_into`, so one agent can explicitly hand context to another instead of silently sharing history.
 
 Sessions handle images automatically - no extra work needed:
 
