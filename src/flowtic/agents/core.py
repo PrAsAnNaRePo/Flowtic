@@ -196,8 +196,6 @@ class AsyncAgent(AgentInterface):
 
                     # if metadata['function_name'] != '_async_spin_into':
                     assert isinstance(tool_output, tuple), "Tool output should return a tuple of (text, images (none if no images))"
-                    if tool_output[0] is not None:
-                        final_output = str(tool_output[0])
                     self.add_context(tool_output={
                         'fn_name': metadata['function_name'],
                         'tool_call_id': metadata['tool_call'].id,
