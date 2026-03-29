@@ -63,10 +63,10 @@ class Agent(AgentInterface):
             self.add_context(assistant_output=response_message)
             turn_count += 1
             message_text = _message_content_to_text(response_message.content)
-            if message_text is not None:
-                final_output = message_text
-
             tool_calls = response_message.tool_calls or []
+
+            if not tool_calls and message_text is not None:
+                final_output = message_text
 
             if tool_calls:
                 communication_occurred = False
@@ -81,8 +81,6 @@ class Agent(AgentInterface):
                         tool_output = self.tools.get_callable(function_name)(**function_args)
 
                     assert isinstance(tool_output, tuple), "Tool output should return a tuple of (text, images (none if no images))"
-                    if tool_output[0] is not None:
-                        final_output = str(tool_output[0])
 
                     self.add_context(tool_output={'fn_name': function_name, 'tool_call_id': tool_call.id, 'output': str(tool_output[0])})
                     if tool_output[1]:
@@ -160,10 +158,10 @@ class AsyncAgent(AgentInterface):
             self.add_context(assistant_output=response_message)
             turn_count += 1
             message_text = _message_content_to_text(response_message.content)
-            if message_text is not None:
-                final_output = message_text
-
             tool_calls = response_message.tool_calls or []
+
+            if not tool_calls and message_text is not None:
+                final_output = message_text
 
             if tool_calls:
                 communication_occurred = False

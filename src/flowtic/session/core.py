@@ -86,9 +86,12 @@ class SessionManager(SessionInterface):
             raise ValueError("No input provided")
     
     def add_assistant_context(self, tag: str, ass_out: Any):
-        self._buffer_memory[tag].append(
-            ass_out
-        )
+        if hasattr(ass_out, 'model_dump'):
+            self._buffer_memory[tag].append(ass_out.model_dump())
+        elif hasattr(ass_out, 'dict'):
+            self._buffer_memory[tag].append(ass_out.dict())
+        else:
+            self._buffer_memory[tag].append(ass_out)
     
     def add_tool_context(self, tag: str, fn_name, tool_call_id, output):
         self._buffer_memory[tag].append(

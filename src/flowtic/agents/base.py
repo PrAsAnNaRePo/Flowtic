@@ -47,7 +47,7 @@ class AgentInterface(ABC):
             self.callbacks = Callback()
         
         if not self.allow_user_input:
-            print(f"Restricting user input to Agent {self.name}") if self.verbose else None 
+            print(f"Restricting user input to Agent {self.name}") if self.verbose else None
             self.instructions += '\nYou are STRICTLY NOT allowed to communicate to user directly, contact to any other agents if you are allowed to.'
         
         if self.agent_name:
